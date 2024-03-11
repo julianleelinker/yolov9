@@ -147,7 +147,7 @@ def create_soft_link(image_root, lidar_plane_url):
 file_path_root = '/home/julian/data/indus-innov/raw_anno'
 image_root     = '/home/julian/data/indus-innov/images/kaohsiung5gsmartcitydemo'
 bdd_anno_root  = '/home/julian/data/indus-innov/0311/bdd_anno'
-file_path_list = sorted(pathlib.Path(file_path_root).rglob('*.json'))
+file_path_list = sorted(pathlib.Path(file_path_root).glob('*.json'))
 
 
 # %% select one for inspecting data
