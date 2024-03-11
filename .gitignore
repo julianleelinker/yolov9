@@ -1,0 +1,4 @@
+runs/detect/*
+runs/train/*
+*.pyc
+*.pt
