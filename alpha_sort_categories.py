@@ -1,0 +1,31 @@
+cats = [
+    'CAR',
+    'TRUCK',
+    'BUS',
+    'MOTORCYCLE',
+    'BICYCLE',
+    'WHEELCHAIR',
+    'ETC',
+    'PEDESTRIAN',
+    'NON_UPRIGHT',
+    'HUMAN_LIKE',
+    'RIDER',
+    'ANIMAL',
+    'POLE',
+    'TRAFFIC_SIGN',
+    'TRAFFIC_LIGHT',
+    'BUS_STOP_SIGN',
+    'STOP_SIGN',
+    'ROAD_CRACKS',
+    'ROAD_PATCH',
+    'ROAD_POTHOLES',
+    'UNCLEAR_LANE_MARKING',
+    'UNCLEAR_STOP_LINE',
+    'UNCLEAR_ROAD_MARKING',
+    'CONE',
+    'BARRICADE',
+    'JERSEY_BARRIER',
+]
+sorted_cats = sorted(cats)
+for i, item in enumerate(sorted_cats):
+    print(f'  {i}: {item}')
