@@ -2,6 +2,9 @@
 import orjson
 import pathlib
 import tqdm
+import pickle
+import pandas as pd
+from collections import defaultdict
 
 od_classes = {
     # box2d classes
@@ -115,6 +118,15 @@ od_mislabeled_as_seg_uuid_list = {
     'd748094a-7389-46b7-841c-f0b39d180fda',
 }
 
+
+def get_timestamp_from_file_name(file_name):
+    digitals = file_name.split('.')[0]
+    timestamp = int(digitals) 
+    if len(digitals) == 16:
+        timestamp *= 10**3
+    return timestamp
+
+
 def get_image_from_lidar_plane_url(image_root, lidar_plane_url, repeat):
     parent_name = '/' + lidar_plane_url[0].split('/')[0]
     file_name = '/' + lidar_plane_url[0].split('/')[1]
@@ -192,6 +204,8 @@ for file_path in file_path_list:
         bdddata = val[0]['bddData']
         unlabelled_frames = []
         for frame_id, frame in enumerate(bdddata['frame_list']):
+            frame_name_list.append(frame['name'])
+            continue
 
             if len(frame['labels']) != 0:
                 # print('no label')
@@ -272,7 +286,28 @@ for file_path in file_path_list:
         with open(json_path, 'w') as f:
             f.write(orjson.dumps(bdddata).decode())
 
+frame_name_list = sorted(frame_name_list)
+sequence_list = []
+sequence_time_diff = 5*10**8 # 0.5 sec
+sequence = [frame_name_list[0]]
+for i in range(len(frame_name_list)-1):
+    if get_timestamp_from_file_name(frame_name_list[i+1]) - get_timestamp_from_file_name(sequence[-1]) < sequence_time_diff:
+        sequence.append(frame_name_list[i+1])
+    else:
+        # print(sequence)
+        sequence_list.append(sequence)
+        sequence = [frame_name_list[i+1]]
+sequence_list.append(sequence)
 
+cnt = 0
+for sqeuence in sequence_list:
+    cnt += len(sqeuence)
+print(f'seq time diff   {sequence_time_diff} ns')
+print(f'num of sequence {len(sequence_list)}')
+print(f'frame in seq    {cnt}')
+seq_len = [len(_) for _ in sequence_list]
+print(seq_len)
+import ipdb; ipdb.set_trace()
 print(f'newly added labels: {newly_added_categories}')
 print(f'not_supported_labels: {len(not_supported_labels)}')
 print(f'bad_labels: {len(bad_labels)}')
