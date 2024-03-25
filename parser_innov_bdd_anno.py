@@ -2,32 +2,12 @@
 import orjson
 import pathlib
 import tqdm
-import pickle
 import pandas as pd
 from collections import defaultdict
 
-od_classes = {
-    # box2d classes
-    'CAR',
-    'TRUCK',
-    'BUS',
-    'MOTORCYCLE',
-    'BICYCLE',
-    'WHEELCHAIR',
-    'ETC', #
-    'PEDESTRIAN',
-    'NON_UPRIGHT', #
-    'HUMAN_LIKE', #
-    'RIDER',
-    'ANIMAL',
-    'POLE', # not used
-    'TRAFFIC_SIGN',
-    'TRAFFIC_LIGHT',
-    'BUS_STOP_SIGN',
-    'STOP_SIGN',
-    'PAVEMENT_DEFECT',
-    'UNCLEAR',
-}
+
+unclear_levels = {'TWO_PERCENT', 'THREE_PERCENT', 'FOUR_PERCENT' }
+
 
 interested_classes = {
     # box2d classes
@@ -53,7 +33,7 @@ interested_classes = {
     'ROAD_CRACKS', # newly added
     'ROAD_PATCH', # newly added
     'ROAD_POTHOLES', # newly added
-    'PAVEMENT_DEFECT',
+    'PAVEMENT_DEFECT', # parent class
 
     # flurr incpmlete
     'LANE_MARKING', # flurr / incomplete
@@ -65,8 +45,6 @@ interested_classes = {
     'BARRICADE',
     'JERSEY_BARRIER',
 }
-
-unclear_levels = {'TWO_PERCENT', 'THREE_PERCENT', 'FOUR_PERCENT' }
 
 
 interested_to_seg_classes = {
@@ -97,14 +75,41 @@ uninterested_classes = {
     'MOTORCYCLE_WAITING_ZONE',
     'ROAD',
     'SIDEWALK',
-    # 'ROAD_DAMAGE', # not used
-    'CONE',
-    'BARRICADE',
-    'JERSEY_BARRIER',
     'BUS_STOP',
     'OBSTRUCTION',
     'SMOKE',
 }
+
+
+final_classes = [
+    'ANIMAL',
+    'BARRICADE',
+    'BICYCLE',
+    'BUS',
+    'BUS_STOP_SIGN',
+    'CAR',
+    'CLEAN_TRAFFIC_SIGN',
+    'CONE',
+    'ETC',
+    'HUMAN_LIKE',
+    'JERSEY_BARRIER',
+    'MOTORCYCLE',
+    'NON_UPRIGHT',
+    'PEDESTRIAN',
+    'POLE',
+    'RIDER',
+    'ROAD_CRACKS',
+    'ROAD_PATCH',
+    'ROAD_POTHOLES',
+    'STOP_SIGN',
+    'TRAFFIC_LIGHT',
+    'TRUCK',
+    'UGLY_TRAFFIC_SIGN',
+    'UNCLEAR_LANE_MARKING',
+    'UNCLEAR_ROAD_MARKING',
+    'UNCLEAR_STOP_LINE',
+    'WHEELCHAIR',
+]
 
 flurr_incomplete_classes = {
     'LANE_MARKING', # flurr / incomplete
@@ -121,6 +126,8 @@ od_mislabeled_as_seg_uuid_list = {
 
 def get_timestamp_from_file_name(file_name):
     digitals = file_name.split('.')[0]
+    if len(digitals) == 17 or len(digitals) == 20:
+        digitals = digitals[1:]
     timestamp = int(digitals) 
     if len(digitals) == 16:
         timestamp *= 10**3
@@ -145,45 +152,21 @@ def create_soft_link(image_root, lidar_plane_url):
         print(f'create soft link: link {link_path} -> source {actual_path}')
 
 
-# %%
-# file_path_list = [
-#     '/home/julian/data/indus-innov/TIIP-S1-1000.json',
-#     '/home/julian/data/indus-innov/TIIP-S2-1000.json',
-# ]
-
-# file_path_list = [
-#     '/home/julian/data/indus-innov/65543e93266c1b7a5656bfb6-0-pipelineBDDPlusSet.json',
-#     '/home/julian/data/indus-innov/65543ecb266c1b7a5656cc86-0-pipelineBDDPlusSet.json',
-# ]
-
 file_path_root = '/home/julian/data/indus-innov/raw_anno'
 image_root     = '/home/julian/data/indus-innov/images/kaohsiung5gsmartcitydemo'
-bdd_anno_root  = '/home/julian/data/indus-innov/0311/bdd_anno'
+bdd_anno_root  = '/home/julian/data/indus-innov/0325/bdd_anno'
 file_path_list = sorted(pathlib.Path(file_path_root).glob('*.json'))
+# file_path_list = file_path_list[:6]
 
 
-# %% select one for inspecting data
-# file_path = file_path_list[0]
-# with open(file_path, 'r') as f:
-#     data = orjson.loads(f.read())
-# access one example frame
-# ex_frame_list = data['jobBddData']['65543f76266c1b7a5656dadd'][0]['bddData']['frame_list']
-
-
-# %% separate all data to different json that can be convert by bdd2coco, and check if there is any bad label
-flurr_incomplete_labels = []
-bad_labels = []
+# separate all data to different json that can be convert by bdd2coco, and check if there is any bad label
 not_supported_labels = []
 newly_added_categories = set()
-labeled_images = set()
-
-counter = {
-    'CONE': 0,
-    'BARRICADE': 0,
-    'JERSEY_BARRIER': 0,
-}
+task_dict = {}
+df = pd.DataFrame(columns=(['timestamp', 'image_id', 'seq_id'] + final_classes))
 
 for file_path in file_path_list:
+    # create folder
     print(f'parsing {file_path}')
     with open(file_path, 'r') as f:
         data = orjson.loads(f.read())
@@ -192,26 +175,20 @@ for file_path in file_path_list:
 
 
     for key, val in tqdm.tqdm(data['jobBddData'].items()):
+        assert key not in task_dict, f'{key} already exist'
+        task_dict[key] = val
         pathlib.Path(f'{root_path}/{key}').mkdir(exist_ok=True, parents=True)
 
-        # json1 = val[0]
-        # json2 = val[1]
-        # result = deepdiff.DeepDiff(json1, json2)
-        # for key in result['values_changed'].keys():
-        #     assert key in accept_changes, f'{key} not in accept_changes'
-
-        i = 0
-        bdddata = val[0]['bddData']
-        unlabelled_frames = []
+        bdddata_id = 0 # 0 or 1?
+        bdddata = val[bdddata_id]['bddData']
         for frame_id, frame in enumerate(bdddata['frame_list']):
-            frame_name_list.append(frame['name'])
-            continue
+            # frame info for splitting
+            timestamp = get_timestamp_from_file_name(frame['name'])
+            image_id = (df['timestamp'] == timestamp).sum()
+            class_counter = {cat: 0 for cat in final_classes}
 
-            if len(frame['labels']) != 0:
-                # print('no label')
-                create_soft_link(image_root, frame['lidarPlaneURLs'])
-            else:
-                unlabelled_frames.append(frame_id)
+            # create soft link
+            create_soft_link(image_root, frame['lidarPlaneURLs'])
 
             for label in frame['labels']:
 
@@ -219,97 +196,72 @@ for file_path in file_path_list:
                     newly_added_categories.add(label['category'])
 
                 if label['category'] in interested_classes:
-                    if 'box2d' in label:
-                        continue
-                    if label['category'] in interested_to_seg_classes or label['uuid'] in od_mislabeled_as_seg_uuid_list:
 
-                        if label['category'] in flurr_incomplete_classes:
-                            if label['attributes']['INCOMPLETE'] in unclear_levels or label['attributes']['UNCLEAR'] in unclear_levels:
-                                #label['category'] = 'UNCLEAR' # combine label
-                                label['category'] = 'UNCLEAR_' + label['category'] # split label
-                            else:
-                                break
+                    # change category in place
+                    if label['category'] in flurr_incomplete_classes:
+                        if label['attributes']['INCOMPLETE'] in unclear_levels or label['attributes']['UNCLEAR'] in unclear_levels:
+                            #label['category'] = 'UNCLEAR' # combine label
+                            label['category'] = 'UNCLEAR_' + label['category'] # split label
+                        else:
+                            continue
+                    # combine label
+                    # if label['category'] in pavement_defect_candidate:
+                    #     label['category'] = 'PAVEMENT_DEFECT'
+                    # split label
 
-                        # combine label
-                        # if label['category'] in pavement_defect_candidate:
-                        #     label['category'] = 'PAVEMENT_DEFECT'
+                    if label['category'] == 'PAVEMENT_DEFECT':
+                        label['category'] = label['attributes']['PAVEMENT_DEFECT']
 
-                        # split label
-                        if label['category'] == 'PAVEMENT_DEFECT':
-                            label['category'] = label['attributes']['PAVEMENT_DEFECT']
+                    if label['category'] in ['TRAFFIC_SIGN']:
+                        if label['attributes']['DIRTY'] == 'YES':
+                            label['category'] = 'DIRTY_' + label['category']
+                        else:
+                            label['category'] = 'CLEAN_' + label['category']
 
-                        if 'segment' in label:
-                            bbox = label['segment']['bbox']
-                            label['box2d'] = {
-                                'x1': bbox[0],
-                                'y1': bbox[1],
-                                'x2': bbox[0]+bbox[2],
-                                'y2': bbox[1]+bbox[3],
-                            }
-                            # label['box2d'] = {
-                            #     'x1': 100,
-                            #     'y1': 300,
-                            #     'x2': 200,
-                            #     'y2': 400,
-                            # }
-                            label.pop('segment')
-                        elif 'poly2d' in label:
-                            pass
-                            # ex_label = label
-                            # vertices = label['poly2d'][0]['vertices']
-                            # xs = [xy[0] for xy in vertices]
-                            # ys = [xy[1] for xy in vertices]
-                            # label['box2d'] = {
-                            #     'x1': min(xs)+1,
-                            #     'y1': min(ys)+1,
-                            #     'x2': max(xs)-1,
-                            #     'y2': max(ys)-1,
-                            # }
-                            # label.pop('poly2d')
-                        # else:
-                        #     print('not suppported shape')
-                        #     print(label)
-                        #     not_supported_labels.append(label)
-                        # assert label['box2d']['x1'] > 0
-                        # assert label['box2d']['x2'] < 1920
-                        # assert label['box2d']['y1'] > 0
-                        # assert label['box2d']['y2'] < 1280
 
-                        #     }
+                    class_counter[label['category']] += 1
+                    # get box2d
+                    if 'box2d' in label or 'poly2d' in label:
+                        # can be handled by bdd2coco/bdd2yolo later
+                        pass 
+                    elif 'segment' in label:
+                        bbox = label['segment']['bbox']
+                        label['box2d'] = {
+                            'x1': bbox[0],
+                            'y1': bbox[1],
+                            'x2': bbox[0]+bbox[2],
+                            'y2': bbox[1]+bbox[3],
+                        }
+                        label.pop('segment')
                     else:
-                        bad_labels.append(label)
-        for frame_id in unlabelled_frames[::-1]:
-            bdddata['frame_list'].pop(frame_id)
+                        print('not suppported shape')
+                        print(label)
+                        not_supported_labels.append(label)
 
-        # save tmp to json file
-        json_path = f'{root_path}/{key}/{i}.json'
+            pddata = pd.DataFrame(dict(timestamp=timestamp, image_id=image_id, seq_id=0, **class_counter), index=[0])
+            df = pd.concat([df, pddata], ignore_index=True)
+                    
+        # save processed bdd to json file
+        json_path = f'{root_path}/{key}/{bdddata_id}.json'
         with open(json_path, 'w') as f:
             f.write(orjson.dumps(bdddata).decode())
 
-frame_name_list = sorted(frame_name_list)
-sequence_list = []
+df = df.sort_values(by='timestamp', ascending=True)
 sequence_time_diff = 5*10**8 # 0.5 sec
-sequence = [frame_name_list[0]]
-for i in range(len(frame_name_list)-1):
-    if get_timestamp_from_file_name(frame_name_list[i+1]) - get_timestamp_from_file_name(sequence[-1]) < sequence_time_diff:
-        sequence.append(frame_name_list[i+1])
-    else:
-        # print(sequence)
-        sequence_list.append(sequence)
-        sequence = [frame_name_list[i+1]]
-sequence_list.append(sequence)
+cur_seq_id = 0
+last_timestamp = df.iloc[0]['timestamp']
+df['seq_id'] = cur_seq_id
+for idx, row in df.iterrows():
+    if row['timestamp'] - last_timestamp > sequence_time_diff:
+        cur_seq_id += 1
+    df.at[idx, 'seq_id'] = cur_seq_id
+    last_timestamp = row['timestamp']
+print(df.sum())
 
-cnt = 0
-for sqeuence in sequence_list:
-    cnt += len(sqeuence)
-print(f'seq time diff   {sequence_time_diff} ns')
-print(f'num of sequence {len(sequence_list)}')
-print(f'frame in seq    {cnt}')
-seq_len = [len(_) for _ in sequence_list]
-print(seq_len)
-import ipdb; ipdb.set_trace()
+
+for cat in class_counter:
+    print(f'{cat}: {class_counter[cat]}')
 print(f'newly added labels: {newly_added_categories}')
 print(f'not_supported_labels: {len(not_supported_labels)}')
-print(f'bad_labels: {len(bad_labels)}')
 print(f'bdd anno parse to {bdd_anno_root} done!')
 
