@@ -259,8 +259,6 @@ for idx, row in df.iterrows():
 print(df.sum())
 
 
-for cat in class_counter:
-    print(f'{cat}: {class_counter[cat]}')
 print(f'newly added labels: {newly_added_categories}')
 print(f'not_supported_labels: {len(not_supported_labels)}')
 print(f'bdd anno parse to {bdd_anno_root} done!')
