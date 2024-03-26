@@ -1,0 +1,55 @@
+path: /home/julian/data/indus-innov/0325/yolo # dataset root dir
+train: train_data.txt  # train images (relative to 'path') 118287 images
+val: train_data.txt  # val images (relative to 'path') 5000 images
+test: train_data.txt  # 20288 of 40670 images, submit to https://competitions.codalab.org/competitions/20794
+
+
+# Classes
+names:
+  0: ANIMAL
+  1: BARRICADE
+  2: BICYCLE
+  3: BUS
+  4: BUS_STOP_SIGN
+  5: CAR
+  6: CLEAN_TRAFFIC_SIGN
+  7: CONE
+  8: ETC
+  9: HUMAN_LIKE
+  10: JERSEY_BARRIER
+  11: MOTORCYCLE
+  12: NON_UPRIGHT
+  13: PEDESTRIAN
+  14: POLE
+  15: RIDER
+  16: ROAD_CRACKS
+  17: ROAD_PATCH
+  18: ROAD_POTHOLES
+  19: STOP_SIGN
+  20: TRAFFIC_LIGHT
+  21: TRAFFIC_SIGN
+  22: TRUCK
+  23: UGLY_TRAFFIC_SIGN
+  24: UNCLEAR_LANE_MARKING
+  25: UNCLEAR_ROAD_MARKING
+  26: UNCLEAR_STOP_LINE
+  27: WHEELCHAIR
+
+
+# Download script/URL (optional)
+download: |
+  from utils.general import download, Path
+
+
+  # Download labels
+  #segments = True  # segment or box labels
+  #dir = Path(yaml['path'])  # dataset root dir
+  #url = 'https://github.com/WongKinYiu/yolov7/releases/download/v0.1/'
+  #urls = [url + ('coco2017labels-segments.zip' if segments else 'coco2017labels.zip')]  # labels
+  #download(urls, dir=dir.parent)
+
+  # Download data
+  #urls = ['http://images.cocodataset.org/zips/train2017.zip',  # 19G, 118k images
+  #        'http://images.cocodataset.org/zips/val2017.zip',  # 1G, 5k images
+  #        'http://images.cocodataset.org/zips/test2017.zip']  # 7G, 41k images (optional)
+  #download(urls, dir=dir / 'images', threads=3)
