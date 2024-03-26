@@ -4,6 +4,7 @@ import pathlib
 import tqdm
 import pandas as pd
 from collections import defaultdict
+import argparse
 
 
 unclear_levels = {'TWO_PERCENT', 'THREE_PERCENT', 'FOUR_PERCENT' }
@@ -152,114 +153,125 @@ def create_soft_link(image_root, lidar_plane_url):
         print(f'create soft link: link {link_path} -> source {actual_path}')
 
 
-file_path_root = '/home/julian/data/indus-innov/raw_anno'
-image_root     = '/home/julian/data/indus-innov/images/kaohsiung5gsmartcitydemo'
-bdd_anno_root  = '/home/julian/data/indus-innov/0325/bdd_anno'
-file_path_list = sorted(pathlib.Path(file_path_root).glob('*.json'))
-# file_path_list = file_path_list[:6]
+def main(args):
+    file_path_root = '/home/julian/data/indus-innov/raw_anno'
+    image_root     = '/home/julian/data/indus-innov/images/kaohsiung5gsmartcitydemo'
+    bdd_anno_root  = '/home/julian/data/indus-innov/0325/bdd_anno'
+    file_path_list = sorted(pathlib.Path(file_path_root).glob('*.json'))
+    # file_path_list = file_path_list[7:8]
 
 
-# separate all data to different json that can be convert by bdd2coco, and check if there is any bad label
-not_supported_labels = []
-newly_added_categories = set()
-task_dict = {}
-df = pd.DataFrame(columns=(['timestamp', 'image_id', 'seq_id'] + final_classes))
+    # separate all data to different json that can be convert by bdd2coco, and check if there is any bad label
+    not_supported_labels = []
+    newly_added_categories = set()
+    task_dict = {}
+    df = pd.DataFrame(columns=(['timestamp', 'image_id', 'seq_id'] + final_classes))
 
-for file_path in file_path_list:
-    # create folder
-    print(f'parsing {file_path}')
-    with open(file_path, 'r') as f:
-        data = orjson.loads(f.read())
-    root_path = f'{bdd_anno_root}/{pathlib.Path(file_path).stem}'
-    pathlib.Path(root_path).mkdir(exist_ok=True, parents=True)
+    for file_path in file_path_list:
+        # create folder
+        print(f'parsing {file_path}')
+        with open(file_path, 'r') as f:
+            data = orjson.loads(f.read())
+        root_path = f'{bdd_anno_root}/{pathlib.Path(file_path).stem}'
+        pathlib.Path(root_path).mkdir(exist_ok=True, parents=True)
 
 
-    for key, val in tqdm.tqdm(data['jobBddData'].items()):
-        assert key not in task_dict, f'{key} already exist'
-        task_dict[key] = val
-        pathlib.Path(f'{root_path}/{key}').mkdir(exist_ok=True, parents=True)
+        for key, val in tqdm.tqdm(data['jobBddData'].items()):
+            assert key not in task_dict, f'{key} already exist'
+            task_dict[key] = val
+            pathlib.Path(f'{root_path}/{key}').mkdir(exist_ok=True, parents=True)
 
-        bdddata_id = 0 # 0 or 1?
-        bdddata = val[bdddata_id]['bddData']
-        for frame_id, frame in enumerate(bdddata['frame_list']):
-            # frame info for splitting
-            timestamp = get_timestamp_from_file_name(frame['name'])
-            image_id = (df['timestamp'] == timestamp).sum()
-            class_counter = {cat: 0 for cat in final_classes}
+            bdddata_id = 0 # 0 or 1?
+            bdddata = val[bdddata_id]['bddData']
+            for frame_id, frame in enumerate(bdddata['frame_list']):
+                # frame info for splitting
+                timestamp = get_timestamp_from_file_name(frame['name'])
+                image_id = (df['timestamp'] == timestamp).sum()
+                class_counter = {cat: 0 for cat in final_classes}
 
-            # create soft link
-            create_soft_link(image_root, frame['lidarPlaneURLs'])
+                # create soft link
+                create_soft_link(image_root, frame['lidarPlaneURLs'])
 
-            for label in frame['labels']:
+                for label in frame['labels']:
 
-                if (not label['category'] in interested_classes) and (not label['category'] in uninterested_classes):
-                    newly_added_categories.add(label['category'])
+                    if (not label['category'] in interested_classes) and (not label['category'] in uninterested_classes):
+                        newly_added_categories.add(label['category'])
 
-                if label['category'] in interested_classes:
+                    if label['category'] in interested_classes:
 
-                    # change category in place
-                    if label['category'] in flurr_incomplete_classes:
-                        if label['attributes']['INCOMPLETE'] in unclear_levels or label['attributes']['UNCLEAR'] in unclear_levels:
-                            #label['category'] = 'UNCLEAR' # combine label
-                            label['category'] = 'UNCLEAR_' + label['category'] # split label
+                        # change category in place
+                        if label['category'] in flurr_incomplete_classes:
+                            if label['attributes']['INCOMPLETE'] in unclear_levels or label['attributes']['UNCLEAR'] in unclear_levels:
+                                #label['category'] = 'UNCLEAR' # combine label
+                                label['category'] = 'UNCLEAR_' + label['category'] # split label
+                            else:
+                                continue
+                        # combine label
+                        # if label['category'] in pavement_defect_candidate:
+                        #     label['category'] = 'PAVEMENT_DEFECT'
+                        # split label
+
+                        if label['category'] == 'PAVEMENT_DEFECT':
+                            label['category'] = label['attributes']['PAVEMENT_DEFECT']
+
+                        if label['category'] in ['TRAFFIC_SIGN']:
+                            if label['attributes']['DIRTY'] == 'YES':
+                                label['category'] = 'DIRTY_' + label['category']
+                            else:
+                                label['category'] = 'CLEAN_' + label['category']
+
+
+                        class_counter[label['category']] += 1
+                        # get box2d
+                        if 'box2d' in label or 'poly2d' in label:
+                            # can be handled by bdd2coco/bdd2yolo later
+                            pass 
+                        elif 'segment' in label:
+                            bbox = label['segment']['bbox']
+                            label['box2d'] = {
+                                'x1': bbox[0],
+                                'y1': bbox[1],
+                                'x2': bbox[0]+bbox[2],
+                                'y2': bbox[1]+bbox[3],
+                            }
+                            label.pop('segment')
                         else:
-                            continue
-                    # combine label
-                    # if label['category'] in pavement_defect_candidate:
-                    #     label['category'] = 'PAVEMENT_DEFECT'
-                    # split label
+                            print('not suppported shape')
+                            print(label)
+                            not_supported_labels.append(label)
 
-                    if label['category'] == 'PAVEMENT_DEFECT':
-                        label['category'] = label['attributes']['PAVEMENT_DEFECT']
+                pddata = pd.DataFrame(dict(timestamp=timestamp, image_id=image_id, seq_id=0, **class_counter), index=[0])
+                df = pd.concat([df, pddata], ignore_index=True)
 
-                    if label['category'] in ['TRAFFIC_SIGN']:
-                        if label['attributes']['DIRTY'] == 'YES':
-                            label['category'] = 'DIRTY_' + label['category']
-                        else:
-                            label['category'] = 'CLEAN_' + label['category']
+            # save processed bdd to json file
+            if not args.dry:
+                json_path = f'{root_path}/{key}/{bdddata_id}.json'
+                with open(json_path, 'w') as f:
+                    f.write(orjson.dumps(bdddata).decode())
 
 
-                    class_counter[label['category']] += 1
-                    # get box2d
-                    if 'box2d' in label or 'poly2d' in label:
-                        # can be handled by bdd2coco/bdd2yolo later
-                        pass 
-                    elif 'segment' in label:
-                        bbox = label['segment']['bbox']
-                        label['box2d'] = {
-                            'x1': bbox[0],
-                            'y1': bbox[1],
-                            'x2': bbox[0]+bbox[2],
-                            'y2': bbox[1]+bbox[3],
-                        }
-                        label.pop('segment')
-                    else:
-                        print('not suppported shape')
-                        print(label)
-                        not_supported_labels.append(label)
-
-            pddata = pd.DataFrame(dict(timestamp=timestamp, image_id=image_id, seq_id=0, **class_counter), index=[0])
-            df = pd.concat([df, pddata], ignore_index=True)
-                    
-        # save processed bdd to json file
-        json_path = f'{root_path}/{key}/{bdddata_id}.json'
-        with open(json_path, 'w') as f:
-            f.write(orjson.dumps(bdddata).decode())
-
-df = df.sort_values(by='timestamp', ascending=True)
-sequence_time_diff = 5*10**8 # 0.5 sec
-cur_seq_id = 0
-last_timestamp = df.iloc[0]['timestamp']
-df['seq_id'] = cur_seq_id
-for idx, row in df.iterrows():
-    if row['timestamp'] - last_timestamp > sequence_time_diff:
-        cur_seq_id += 1
-    df.at[idx, 'seq_id'] = cur_seq_id
-    last_timestamp = row['timestamp']
-print(df.sum())
+    df = df.sort_values(by='timestamp', ascending=True)
+    sequence_time_diff = 5*10**8 # 0.5 sec
+    cur_seq_id = 0
+    last_timestamp = df.iloc[0]['timestamp']
+    df['seq_id'] = cur_seq_id
+    for idx, row in df.iterrows():
+        if row['timestamp'] - last_timestamp > sequence_time_diff:
+            cur_seq_id += 1
+        df.at[idx, 'seq_id'] = cur_seq_id
+        last_timestamp = row['timestamp']
+    print(df.sum())
+    import ipdb; ipdb.set_trace()
 
 
-print(f'newly added labels: {newly_added_categories}')
-print(f'not_supported_labels: {len(not_supported_labels)}')
-print(f'bdd anno parse to {bdd_anno_root} done!')
+    print(f'newly added labels: {newly_added_categories}')
+    print(f'not_supported_labels: {len(not_supported_labels)}')
+    print(f'bdd anno parse to {bdd_anno_root} done!')
 
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    # parser.add_argument('--weights', type=str, help='weights path')
+    parser.add_argument('--dry', action='store_true', help='dry run')
+    args = parser.parse_args()
+    main(args)
