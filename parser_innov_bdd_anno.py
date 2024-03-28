@@ -291,7 +291,7 @@ def main(args):
     print(df.sum())
     stats_array = df[final_classes].to_numpy(dtype=int)
     focus_stats = stats_array[:, [16,17,18,23,24,25]]
-    target_ratio, tolerance = 0.12/0.8, 0.05
+    target_ratio, tolerance = 0.12/0.8, 0.03
     val_mask, train_mask = find_good_split(focus_stats, target_ratio=target_ratio, tolerance=tolerance)
     print(f'newly added labels: {newly_added_categories}')
     print(f'not_supported_labels: {len(not_supported_labels)}')
