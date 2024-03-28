@@ -108,7 +108,7 @@ final_classes = [
     'STOP_SIGN',
     'TRAFFIC_LIGHT',
     'TRUCK',
-    'UGLY_TRAFFIC_SIGN',
+    'DIRTY_TRAFFIC_SIGN',
     'UNCLEAR_LANE_MARKING', #
     'UNCLEAR_ROAD_MARKING', #
     'UNCLEAR_STOP_LINE', #
