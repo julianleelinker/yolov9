@@ -1,0 +1,4 @@
+python qat.py quantize --weights runs/train/yolov9-c7/weights/best-converted.pt --data data/tiip-0311.yaml --hyp data/hyps/hyp.scratch-high.yaml --batch-size 12 --imgsz 640
+python export.py --data data/tiip-0311.yaml --weights runs/qat/exp4/weights/qat_ep_5_ap_0.7026_best-converted.pt --imgsz 640 --include onnx_end2end --device 0
+# inside docker
+/usr/src/tensorrt/bin/trtexec --onnx=qat_ep_5_ap_0.7026_best-converted-end2end.onnx --saveEngine=qat_ep_5_ap_0.7026_best-converted-end2end.trt --explicitBatch --minShapes=images:1x3x640x640 --optShapes=images:3x3x640x640 --maxShapes=images:3x3x640x640 --verbose --device=0 --int8 --fp16
