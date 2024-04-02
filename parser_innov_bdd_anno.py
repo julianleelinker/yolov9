@@ -10,6 +10,10 @@ import copy
 import argparse
 
 
+# TODO need to take care of important classes
+# TODO save split statistics for adding new data incrementally
+
+
 unclear_levels = {'TWO_PERCENT', 'THREE_PERCENT', 'FOUR_PERCENT' }
 
 
@@ -87,13 +91,16 @@ uninterested_classes = {
 
 final_classes = [
     'ANIMAL',
-    'BARRICADE', 
+    'BARRICADE',
     'BICYCLE',
     'BUS',
     'BUS_STOP_SIGN',
     'CAR',
+    'CLEAN_STOP_SIGN',
     'CLEAN_TRAFFIC_SIGN',
     'CONE',
+    'DIRTY_STOP_SIGN',
+    'DIRTY_TRAFFIC_SIGN',
     'ETC',
     'HUMAN_LIKE',
     'JERSEY_BARRIER',
@@ -102,18 +109,32 @@ final_classes = [
     'PEDESTRIAN',
     'POLE',
     'RIDER',
-    'ROAD_CRACKS', #
-    'ROAD_PATCH', #
-    'ROAD_POTHOLES', #
-    'STOP_SIGN',
+    'ROAD_CRACKS',
+    'ROAD_PATCH',
+    'ROAD_POTHOLES',
     'TRAFFIC_LIGHT',
     'TRUCK',
-    'DIRTY_TRAFFIC_SIGN',
-    'UNCLEAR_LANE_MARKING', #
-    'UNCLEAR_ROAD_MARKING', #
-    'UNCLEAR_STOP_LINE', #
+    'UNCLEAR_LANE_MARKING',
+    'UNCLEAR_ROAD_MARKING',
+    'UNCLEAR_STOP_LINE',
     'WHEELCHAIR',
 ]
+
+
+split_important_classes = [
+    'CLEAN_STOP_SIGN',
+    'CLEAN_TRAFFIC_SIGN',
+    'DIRTY_STOP_SIGN',
+    'DIRTY_TRAFFIC_SIGN',
+    'ROAD_CRACKS',
+    'ROAD_PATCH',
+    'ROAD_POTHOLES',
+    'TRAFFIC_LIGHT',
+    'UNCLEAR_LANE_MARKING',
+    'UNCLEAR_ROAD_MARKING',
+    'UNCLEAR_STOP_LINE',
+]
+
 
 flurr_incomplete_classes = {
     'LANE_MARKING', # flurr / incomplete
@@ -179,9 +200,11 @@ def find_good_split(focus_stats, target_ratio=0.12/0.8, tolerance=0.03):
 
 
 def main(args):
-    file_path_root = '/home/julian/data/indus-innov/raw_anno'
-    image_root     = '/home/julian/data/indus-innov/images/kaohsiung5gsmartcitydemo'
-    bdd_anno_root  = '/home/julian/data/indus-innov/split-0327/bdd_anno'
+    tmp = sorted(final_classes)
+    # file_path_root = '/home/julian/data/indus-innov/raw-anno'
+    # bdd_anno_root  = '/home/julian/data/indus-innov/bdd_anno'
+    # image_root     = '/home/julian/data/indus-innov/images/kaohsiung5gsmartcitydemo'
+    file_path_root, image_root, bdd_anno_root, seq_name = args.raw_anno, args.image_root, args.bdd_anno, args.seq_name
     file_path_list = sorted(pathlib.Path(file_path_root).glob('*.json'))
     # file_path_list = file_path_list[7:8]
 
@@ -222,6 +245,11 @@ def main(args):
 
                 for label in frame['labels']:
 
+                    # if label['category'] == 'STOP_SIGN':
+                    #     with open('frames_with_stop_sign.txt', 'a') as file:
+                    #         file.write(f"{frame['sequence']}/{frame['name']}\n")
+                    #     break
+
                     if (not label['category'] in interested_classes) and (not label['category'] in uninterested_classes):
                         newly_added_categories.add(label['category'])
 
@@ -234,6 +262,7 @@ def main(args):
                                 label['category'] = 'UNCLEAR_' + label['category'] # split label
                             else:
                                 continue
+
                         # combine label
                         # if label['category'] in pavement_defect_candidate:
                         #     label['category'] = 'PAVEMENT_DEFECT'
@@ -242,12 +271,13 @@ def main(args):
                         if label['category'] == 'PAVEMENT_DEFECT':
                             label['category'] = label['attributes']['PAVEMENT_DEFECT']
 
-                        if label['category'] in ['TRAFFIC_SIGN']:
-                            if label['attributes']['DIRTY'] == 'YES':
+                        if label['category'] in ['TRAFFIC_SIGN', 'STOP_SIGN']:
+                            if not 'DIRTY' in label['attributes'] or label['attributes']['DIRTY'] == 'NO':
+                                label['category'] = 'CLEAN_' + label['category']
+                            elif label['attributes']['DIRTY'] == 'YSE':
                                 label['category'] = 'DIRTY_' + label['category']
                             else:
-                                label['category'] = 'CLEAN_' + label['category']
-
+                                assert False, f'wired attribute value: {label["attributes"]["DIRTY"]}'
 
                         class_counter[label['category']] += 1
                         # get box2d
@@ -271,12 +301,6 @@ def main(args):
                 pddata = pd.DataFrame(dict(timestamp=timestamp, image_id=image_id, seq_id=0, **class_counter), index=[0])
                 df = pd.concat([df, pddata], ignore_index=True)
 
-            # save processed bdd to json file
-            # if not args.dry:
-            #     json_path = f'{root_path}/{key}/{bdddata_id}.json'
-            #     with open(json_path, 'w') as f:
-            #         f.write(orjson.dumps(bdddata).decode())
-
 
     df = df.sort_values(by=['image_id', 'timestamp'], ascending=True)
     sequence_time_diff = 5*10**8 # 0.5 sec
@@ -289,6 +313,12 @@ def main(args):
         df.at[idx, 'seq_id'] = cur_seq_id
         last_timestamp = row['timestamp']
     print(df.sum())
+    print('done parsing raw-annos')
+
+    if args.debug:
+        print('press "c" to proceed to continue spliting')
+        import ipdb; ipdb.set_trace()
+
     stats_array = df[final_classes].to_numpy(dtype=int)
     focus_stats = stats_array[:, [16,17,18,23,24,25]]
     target_ratio, tolerance = 0.12/0.8, 0.03
@@ -296,6 +326,12 @@ def main(args):
     print(f'newly added labels: {newly_added_categories}')
     print(f'not_supported_labels: {len(not_supported_labels)}')
     print(f'done spliting with target_ratio {target_ratio} and tolerance {tolerance}')
+    print('done splitting train and val set')
+
+    if args.debug:
+        print('press "c" to proceed to continue save to json file')
+        print('press "q" to to quit without saving')
+        import ipdb; ipdb.set_trace()
 
     # save split id
     for key, frame_list in tqdm.tqdm(all_annos.items()):
@@ -303,8 +339,8 @@ def main(args):
         bdddata_val = copy.deepcopy(bdddata)
         bdddata_train['frame_list'] = []
         bdddata_val['frame_list'] = []
-        pathlib.Path(f'{bdd_anno_root}/train/{key}').mkdir(exist_ok=True, parents=True)
-        pathlib.Path(f'{bdd_anno_root}/val/{key}').mkdir(exist_ok=True, parents=True)
+        pathlib.Path(f'{bdd_anno_root}/train/{seq_name}/{key}/').mkdir(exist_ok=True, parents=True)
+        pathlib.Path(f'{bdd_anno_root}/val/{seq_name}/{key}/').mkdir(exist_ok=True, parents=True)
         for (timestamp, image_id) in frame_list:
             # check train or val
             index = df.index[(df['timestamp'] == timestamp) & (df['image_id'] == image_id)].tolist()
@@ -314,20 +350,27 @@ def main(args):
             elif val_mask[index]:
                 bdddata_val['frame_list'].append(frame_list[(timestamp, image_id)])
 
-        json_path = f'{bdd_anno_root}/train/{key}/{bdddata_id}.json'
+        json_path = f'{bdd_anno_root}/train/{seq_name}/{key}/{bdddata_id}.json'
         with open(json_path, 'w') as f:
             f.write(orjson.dumps(bdddata_train).decode())
 
-        json_path = f'{bdd_anno_root}/val/{key}/{bdddata_id}.json'
+        json_path = f'{bdd_anno_root}/val/{seq_name}/{key}/{bdddata_id}.json'
         with open(json_path, 'w') as f:
             f.write(orjson.dumps(bdddata_val).decode())
     print(f'bdd anno parse to {bdd_anno_root} done!')
-    import ipdb; ipdb.set_trace()
+
+    if args.debug:
+        print('debug mode')
+        import ipdb; ipdb.set_trace()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # parser.add_argument('--weights', type=str, help='weights path')
-    parser.add_argument('--dry', action='store_true', help='dry run')
+    parser.add_argument('--raw_anno', type=str, help='', required=True)
+    parser.add_argument('--bdd_anno', type=str, help='', required=True)
+    parser.add_argument('--image_root', type=str, help='', required=True)
+    parser.add_argument('--seq_name', type=str, help='', required=True)
+    parser.add_argument('--debug', action='store_true', help='debug run with ipdb breakpoint')
     args = parser.parse_args()
     main(args)
