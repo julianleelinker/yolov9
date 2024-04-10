@@ -100,7 +100,7 @@ class QuantConcat(torch.nn.Module, quant_nn_utils.QuantInputMixin):
         inputs = [self._input_quantizer(input) for input in inputs]
         return torch.cat(inputs, self.dimension)
               
-class QuantAdd(torch.nn.Module, quant_nn_utils.QuantMixin):
+class QuantAdd(torch.nn.Module, quant_nn_utils.QuantInputMixin):
     def __init__(self, quantization):
         super().__init__()
         
