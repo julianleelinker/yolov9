@@ -119,6 +119,7 @@ class QuantAdd(torch.nn.Module, quant_nn_utils.QuantInputMixin):
 
 
 class QuantADownAvgChunk(torch.nn.Module, quant_nn_utils.QuantMixin):
+# class QuantADownAvgChunk(torch.nn.Module, quant_nn_utils.QuantInputMixin):
     def __init__(self):
         super().__init__()
         self._chunk_quantizer = quant_nn.TensorQuantizer(QuantDescriptor())
@@ -139,21 +140,23 @@ def adown_quant_forward(self, x):
         return torch.cat((x1, x2), 1)
 
 
-class QunatADown(ADown, quant_nn_utils.QuantMixin):
-    def __init__(self, c1, c2):
-        super(ADown, self).__init__(c1, c2)
-        self._input0_quantizer = quant_nn.TensorQuantizer(QuantDescriptor())
-        self._input1_quantizer = quant_nn.TensorQuantizer(QuantDescriptor())
-        self.avg_pool2d = quant_nn.QuantAvgPool2d(2, 1, 0, False, True)
+class QuantRepNCSPELAN4Chunk(torch.nn.Module, quant_nn_utils.QuantMixin):
+    def __init__(self, cv1, cv2, cv3, cv4):
+        super().__init__()
+        self.cv1, self.cv2, self.cv3, self.cv4 = cv1, cv2, cv3, cv4
+        # self._chunk_quantizer = quant_nn.TensorQuantizer(QuantDescriptor())
 
     def forward(self, x):
-        x = self.avg_pool2d(x)
-        x1,x2 = x.chunk(2, 1)
-        x1 = self.cv1(x1)
-        x2 = torch.nn.functional.max_pool2d(x2, 3, 2, 1)
-        x2 = self.cv2(x2)
-        return torch.cat((x1, x2), 1)
-  
+        # y = list(self.cv1(self._chunk_quantizer(x)).chunk(2, 1))
+        y = list(self.cv1(x).chunk(2, 1))
+        y.extend((m(y[-1])) for m in [self.cv2, self.cv3])
+        return self.cv4(torch.cat(y, 1))
+
+
+def repncspelan4_quant_forward(self, x):
+    if hasattr(self, "repncspelan4chunkop"):
+        return self.repncspelan4chunkop(x)
+
 
 class disable_quantization:
     def __init__(self, model):
@@ -363,19 +366,12 @@ def apply_custom_rules_to_quantizer(model : torch.nn.Module, export_onnx : Calla
                 major = module.cv1.conv._input_quantizer
                 module.repaddop._input0_quantizer = major
                 module.repaddop._input1_quantizer = major
-
-        if module.__class__.__name__ == 'ADown':
+        elif module.__class__.__name__ == 'ADown':
             module.cv1.conv._input_quantizer = module.adownchunkop._chunk_quantizer
 
 
 def replace_custom_module_forward(model):
     for name, module  in model.named_modules():
-
-        if module.__class__.__name__ == "ADown":
-            if not hasattr(module, "adownchunkop"):
-                print(f"Add ADownQuantChunk to {name}")
-                module.adownchunkop = QuantADownAvgChunk()
-            module.__class__.forward = adown_quant_forward
 
         if module.__class__.__name__ == "RepNBottleneck":
             if module.add:
@@ -384,6 +380,17 @@ def replace_custom_module_forward(model):
                     module.repaddop = QuantAdd(module.add)
                     # module.repaddop = QuantAdd(False)
                 module.__class__.forward = repnbottleneck_quant_forward
+        elif module.__class__.__name__ == "ADown":
+            if not hasattr(module, "adownchunkop"):
+                print(f"Add ADownQuantChunk to {name}")
+                module.adownchunkop = QuantADownAvgChunk()
+            module.__class__.forward = adown_quant_forward
+        elif module.__class__.__name__ == "RepNCSPELAN4":
+            if not hasattr(module, "repncspelan4chunkop"):
+                print(f"Add RepNCSPELAN4Chunk to {name}")
+                module.repncspelan4chunkop = QuantRepNCSPELAN4Chunk(module.cv1, module.cv2, module.cv3, module.cv4)
+            model.__class__.forward = repncspelan4_quant_forward
+
 
         # if name == 'model.3':
         #     import ipdb; ipdb.set_trace()
