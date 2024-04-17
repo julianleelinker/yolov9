@@ -357,7 +357,8 @@ def apply_custom_rules_to_quantizer(model : torch.nn.Module, export_onnx : Calla
     pairs.extend([
         ['model.14', 'model.5.adownchunkop.avg_pool2d'],
         ['model.14', 'model.15.cv1.conv'],
-        # ['model.11', 'model.7.adownchunkop.avg_pool2d'],
+        ['model.11', 'model.7.adownchunkop.avg_pool2d'],
+        ['model.11', 'model.12.cv1.conv'],
         # ['model.11', 'model.20'],
     ])
 
