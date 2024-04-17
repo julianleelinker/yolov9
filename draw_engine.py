@@ -3,8 +3,7 @@ copy this file to the root of the trex directory
 '''
 
 import graphviz
-# from trex import *
-import trex
+import trex.graphing
 import argparse
 import shutil
 
@@ -17,15 +16,15 @@ def draw_engine(engine_json_fname: str, engine_profile_fname: str):
         print("sudo apt --yes install graphviz")
         exit()
 
-    plan = trex.EnginePlan(engine_json_fname, engine_profile_fname)
-    formatter = trex.layer_type_formatter
+    plan = trex.engine_plan.EnginePlan(engine_json_fname, engine_profile_fname)
+    formatter = trex.graphing.layer_type_formatter
     display_regions = True
     expand_layer_details = False
 
-    graph = trex.to_dot(plan, formatter,
+    graph = trex.graphing.to_dot(plan, formatter,
                 display_regions=display_regions,
                 expand_layer_details=expand_layer_details)
-    trex.render_dot(graph, engine_json_fname, 'svg')
+    trex.graphing.render_dot(graph, engine_json_fname, 'svg')
 
 
 if __name__ == "__main__":
