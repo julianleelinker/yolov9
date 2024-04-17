@@ -140,17 +140,16 @@ def adown_quant_forward(self, x):
         return torch.cat((x1, x2), 1)
 
 
-class QuantRepNCSPELAN4Chunk(torch.nn.Module, quant_nn_utils.QuantMixin):
-    def __init__(self, cv1, cv2, cv3, cv4):
-        super().__init__()
-        self.cv1, self.cv2, self.cv3, self.cv4 = cv1, cv2, cv3, cv4
-        # self._chunk_quantizer = quant_nn.TensorQuantizer(QuantDescriptor())
+# class QuantRepNCSPELAN4Chunk(torch.nn.Module, quant_nn_utils.QuantMixin):
+#     def __init__(self, cv1, cv2, cv3, cv4):
+#         super().__init__()
+#         self.cv1, self.cv2, self.cv3, self.cv4 = cv1, cv2, cv3, cv4
+#         self._final_quantizer = quant_nn.TensorQuantizer(QuantDescriptor())
 
-    def forward(self, x):
-        # y = list(self.cv1(self._chunk_quantizer(x)).chunk(2, 1))
-        y = list(self.cv1(x).chunk(2, 1))
-        y.extend((m(y[-1])) for m in [self.cv2, self.cv3])
-        return self.cv4(torch.cat(y, 1))
+#     def forward(self, x):
+#         y = list(self.cv1(x).chunk(2, 1))
+#         y.extend((m(y[-1])) for m in [self.cv2, self.cv3])
+#         return self._final_quantizer(self.cv4(torch.cat(y, 1)))
 
 
 def repncspelan4_quant_forward(self, x):
@@ -354,6 +353,14 @@ def apply_custom_rules_to_quantizer(model : torch.nn.Module, export_onnx : Calla
     # apply rules to graph
     export_onnx(model,  "quantization-custom-rules-temp.onnx")
     pairs = find_quantizer_pairs("quantization-custom-rules-temp.onnx")
+    # pairs.extend([["model.3.cv1.conv", "model.3.cv2.conv"], ["model.3.cv1.conv", "model.3.cv3.conv"], ["model.3.cv1.conv", "model.3.cv4.conv"]])
+    pairs.extend([
+        ['model.14', 'model.5.adownchunkop.avg_pool2d'],
+        ['model.14', 'model.15.cv1.conv'],
+        # ['model.11', 'model.7.adownchunkop.avg_pool2d'],
+        # ['model.11', 'model.20'],
+    ])
+
     for major, sub in pairs:
         print(f"Rules: {sub} match to {major}")
         get_attr_with_path(model, sub)._input_quantizer = get_attr_with_path(model, major)._input_quantizer
@@ -385,11 +392,11 @@ def replace_custom_module_forward(model):
                 print(f"Add ADownQuantChunk to {name}")
                 module.adownchunkop = QuantADownAvgChunk()
             module.__class__.forward = adown_quant_forward
-        elif module.__class__.__name__ == "RepNCSPELAN4":
-            if not hasattr(module, "repncspelan4chunkop"):
-                print(f"Add RepNCSPELAN4Chunk to {name}")
-                module.repncspelan4chunkop = QuantRepNCSPELAN4Chunk(module.cv1, module.cv2, module.cv3, module.cv4)
-            model.__class__.forward = repncspelan4_quant_forward
+        # elif module.__class__.__name__ == "RepNCSPELAN4":
+        #     if not hasattr(module, "repncspelan4chunkop"):
+        #         print(f"Add RepNCSPELAN4Chunk to {name}")
+        #         module.repncspelan4chunkop = QuantRepNCSPELAN4Chunk(module.cv1, module.cv2, module.cv3, module.cv4)
+        #     model.__class__.forward = repncspelan4_quant_forward
 
 
         # if name == 'model.3':
