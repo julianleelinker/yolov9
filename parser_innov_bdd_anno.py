@@ -153,6 +153,8 @@ def get_timestamp_from_file_name(file_name):
     digitals = file_name.split('.')[0]
     if len(digitals) == 17 or len(digitals) == 20:
         digitals = digitals[1:]
+    elif len(digitals) == 18 or len(digitals) == 21:
+        digitals = digitals[2:]
     timestamp = int(digitals) 
     if len(digitals) == 16:
         timestamp *= 10**3
