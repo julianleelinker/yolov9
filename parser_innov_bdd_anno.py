@@ -31,7 +31,6 @@ interested_classes = {
     'HUMAN_LIKE', #
     'RIDER',
     'ANIMAL',
-    'POLE', # not used
     'TRAFFIC_SIGN',
     'TRAFFIC_LIGHT',
     'BUS_STOP_SIGN',
@@ -107,7 +106,6 @@ final_classes = [
     'MOTORCYCLE',
     'NON_UPRIGHT',
     'PEDESTRIAN',
-    'POLE',
     'RIDER',
     'ROAD_CRACKS',
     'ROAD_PATCH',
