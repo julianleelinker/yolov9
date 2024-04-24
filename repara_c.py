@@ -5,7 +5,8 @@ from models.yolo import Model
 device = torch.device("cpu")
 cfg = '/home/julian/work/yolov9/models/detect/tiip-c.yaml'
 ckpt_path = '/home/julian/work/yolov9/runs/train/yolov9-c7/weights/best.pt'
-output_path = '/home/julian/work/yolov9/runs/train/yolov9-c7/weights/best-converted.pt'
+# output_path = '/home/julian/work/yolov9/runs/train/yolov9-c7/weights/best-converted.pt'
+output_path = '/home/julian/work/yolov9/runs/train/yolov9-c7/weights/best-converted-2.pt'
 
 model = Model(cfg, ch=3, nc=26, anchors=3)
 #model = model.half()

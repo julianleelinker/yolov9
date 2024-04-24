@@ -1,4 +1,16 @@
 python qat.py quantize --weights runs/train/yolov9-c7/weights/best-converted.pt --data data/tiip-0311.yaml --hyp data/hyps/hyp.scratch-high.yaml --batch-size 12 --imgsz 640
 python export.py --data data/tiip-0311.yaml --weights runs/qat/exp4/weights/qat_ep_5_ap_0.7026_best-converted.pt --imgsz 640 --include onnx_end2end --device 0
+
 # inside docker
 /usr/src/tensorrt/bin/trtexec --onnx=qat_ep_5_ap_0.7026_best-converted-end2end.onnx --saveEngine=qat_ep_5_ap_0.7026_best-converted-end2end.trt --explicitBatch --minShapes=images:1x3x640x640 --optShapes=images:3x3x640x640 --maxShapes=images:3x3x640x640 --verbose --device=0 --int8 --fp16
+# or TRT implicit 
+## first generate calib.cache by
+python trt_int8.py --onnx <onnx-file> --calib_path <calib-dir>
+## then rerun with --calib and save json 
+/usr/src/tensorrt/bin/trtexec --minShapes=images:1x3x640x640 --optShapes=images:3x3x640x640 --maxShapes=images:3x3x640x640 --verbose \
+  --device=0 --int8 --fp16 --warmUp=500 --duration=10  --useCudaGraph --useSpinWait --noDataTransfers --profilingVerbosity=detailed \
+  --onnx=qat-0419.onnx --saveEngine=qat-0419.trt --exportLayerInfo=qat-0419-layer.json --exportProfile=qat-0419-profile.json --calib=calib.cache
+# or for plotting graph with qat module
+/usr/src/tensorrt/bin/trtexec --minShapes=images:1x3x640x640 --optShapes=images:3x3x640x640 --maxShapes=images:3x3x640x640 --verbose \
+  --device=0 --int8 --fp16 --warmUp=500 --duration=10  --useCudaGraph --useSpinWait --noDataTransfers --profilingVerbosity=detailed \
+  --onnx=qat-0419.onnx --saveEngine=qat-0419.trt --exportLayerInfo=qat-0419-layer.json --exportProfile=qat-0419-profile.json
