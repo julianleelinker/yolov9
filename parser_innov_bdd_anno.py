@@ -118,6 +118,7 @@ final_classes = [
     'WHEELCHAIR',
 ]
 final_classes = sorted(final_classes)
+interested_classes_idx = [6, 10, 20, 25]
 
 
 split_important_classes = [
@@ -322,7 +323,7 @@ def main(args):
         import ipdb; ipdb.set_trace()
 
     stats_array = df[final_classes].to_numpy(dtype=int)
-    focus_stats = stats_array[:, [6, 10, 20, 25]]
+    focus_stats = stats_array[:, interested_classes_idx]
     target_ratio, tolerance = 0.12/0.8, 0.03
     val_mask, train_mask = find_good_split(focus_stats, target_ratio=target_ratio, tolerance=tolerance)
     val_stats, total_stats = np.sum(stats_array[val_mask],axis=0), np.sum(stats_array,axis=0)
