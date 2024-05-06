@@ -1,8 +1,7 @@
-# path: /home/julian/data/indus-innov/0311/yolo # dataset root dir
-path: /mnt/data-home/julian/msi/data/indus-innov/0311/yolo # 197
-train: train_data.txt  # train images (relative to 'path') 118287 images
-val: train_data.txt  # val images (relative to 'path') 5000 images
-test: train_data.txt  # 20288 of 40670 images, submit to https://competitions.codalab.org/competitions/20794
+path: /mnt/data-home/julian/msi/data/indus-innov/yolo-s1_s12
+train: train_data.txt  # train images 
+val: val_data.txt  # val images (relative to 'path') 5000 images
+test: val_data.txt  # there is not val data
 
 
 # Classes
@@ -13,26 +12,27 @@ names:
   3: BUS
   4: BUS_STOP_SIGN
   5: CAR
-  6: CONE
-  7: ETC
-  8: HUMAN_LIKE
-  9: JERSEY_BARRIER
-  10: MOTORCYCLE
-  11: NON_UPRIGHT
-  12: PEDESTRIAN
-  13: POLE
-  14: RIDER
-  15: ROAD_CRACKS
-  16: ROAD_PATCH
-  17: ROAD_POTHOLES
-  18: STOP_SIGN
-  19: TRAFFIC_LIGHT
-  20: TRAFFIC_SIGN
-  21: TRUCK
-  22: UNCLEAR_LANE_MARKING
-  23: UNCLEAR_ROAD_MARKING
-  24: UNCLEAR_STOP_LINE
-  25: WHEELCHAIR
+  6: CLEAN_STOP_SIGN
+  7: CLEAN_TRAFFIC_SIGN
+  8: CONE
+  9: DIRTY_STOP_SIGN
+  10: DIRTY_TRAFFIC_SIGN
+  11: ETC
+  12: HUMAN_LIKE
+  13: JERSEY_BARRIER
+  14: MOTORCYCLE
+  15: NON_UPRIGHT
+  16: PEDESTRIAN
+  17: RIDER
+  18: ROAD_CRACKS
+  19: ROAD_PATCH
+  20: ROAD_POTHOLES
+  21: TRAFFIC_LIGHT
+  22: TRUCK
+  23: UNCLEAR_LANE_MARKING
+  24: UNCLEAR_ROAD_MARKING
+  25: UNCLEAR_STOP_LINE
+  26: WHEELCHAIR
 
 
 # Download script/URL (optional)
