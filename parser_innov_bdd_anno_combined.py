@@ -350,27 +350,33 @@ def main(args):
     focus_stats = stats_array[:, interested_classes_ids]
     seq_id_array = df[['seq_id']].to_numpy(dtype=int)
     target_ratio, tolerance = 0.12/0.8, 0.05
-    val_mask, train_mask = find_good_split_by_sequence(focus_stats, seq_id_array, target_ratio=target_ratio, tolerance=tolerance)
-    # val_mask, train_mask = find_good_split(focus_stats, target_ratio=target_ratio, tolerance=tolerance)
-    val_stats, total_stats = np.sum(stats_array[val_mask],axis=0), np.sum(stats_array,axis=0)
-    assert val_stats.shape[0] == len(final_classes) and total_stats.shape[0] == len(final_classes), f'stats array dimension wrong != {len(final_classes)}'
-    stats_np = np.concatenate([val_stats.reshape(1, -1), total_stats.reshape(1, -1)], axis=0)
+
+    inp = 'no'
+    while inp!='yes':
+        val_mask, train_mask = find_good_split_by_sequence(focus_stats, seq_id_array, target_ratio=target_ratio, tolerance=tolerance)
+        # val_mask, train_mask = find_good_split(focus_stats, target_ratio=target_ratio, tolerance=tolerance)
+        val_stats, total_stats = np.sum(stats_array[val_mask],axis=0), np.sum(stats_array,axis=0)
+        assert val_stats.shape[0] == len(final_classes) and total_stats.shape[0] == len(final_classes), f'stats array dimension wrong != {len(final_classes)}'
+        stats_np = np.concatenate([val_stats.reshape(1, -1), total_stats.reshape(1, -1)], axis=0)
+        print('val ratio')
+        print(val_stats/total_stats)
+        print(f'newly added labels: {newly_added_categories}')
+        print(f'not_supported_labels: {len(not_supported_labels)}')
+        print(f'done spliting with target_ratio {target_ratio} and tolerance {tolerance}')
+        print('done splitting train and val set')
+        inp = input('yes to continue, otherwise re-split: ')
+
+
     pathlib.Path(f'{bdd_anno_root}').mkdir(exist_ok=True, parents=True)
     with open(f'{bdd_anno_root}/{seq_name}_stats_np.npy', 'wb') as f:
         np.save(f, stats_np)
     with open(f'{bdd_anno_root}/{seq_name}_class_name.txt', 'w') as f:
         f.write('name:\n')
         for i in range(len(final_classes)):
-            f.write(f'  {final_classes[i]}\n')
+            f.write(f'{i:02}: {final_classes[i]}\n')
     with open(f'{bdd_anno_root}/{seq_name}_category_file.txt', 'w') as f:
         for i in range(len(final_classes)):
             f.write(f'{final_classes[i]}\n')
-    print('val ratio')
-    print(val_stats/total_stats)
-    print(f'newly added labels: {newly_added_categories}')
-    print(f'not_supported_labels: {len(not_supported_labels)}')
-    print(f'done spliting with target_ratio {target_ratio} and tolerance {tolerance}')
-    print('done splitting train and val set')
 
     if args.debug:
         print('press "c" to proceed to continue save to json file')
