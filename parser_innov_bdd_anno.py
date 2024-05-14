@@ -31,7 +31,6 @@ interested_classes = {
     'HUMAN_LIKE', #
     'RIDER',
     'ANIMAL',
-    'POLE', # not used
     'TRAFFIC_SIGN',
     'TRAFFIC_LIGHT',
     'BUS_STOP_SIGN',
@@ -89,36 +88,37 @@ uninterested_classes = {
 }
 
 
-final_classes = [
-    'ANIMAL',
-    'BARRICADE',
-    'BICYCLE',
-    'BUS',
-    'BUS_STOP_SIGN',
-    'CAR',
-    'CLEAN_STOP_SIGN',
-    'CLEAN_TRAFFIC_SIGN',
-    'CONE',
-    'DIRTY_STOP_SIGN',
-    'DIRTY_TRAFFIC_SIGN',
-    'ETC',
-    'HUMAN_LIKE',
-    'JERSEY_BARRIER',
-    'MOTORCYCLE',
-    'NON_UPRIGHT',
-    'PEDESTRIAN',
-    'POLE',
-    'RIDER',
-    'ROAD_CRACKS',
-    'ROAD_PATCH',
-    'ROAD_POTHOLES',
-    'TRAFFIC_LIGHT',
-    'TRUCK',
-    'UNCLEAR_LANE_MARKING',
-    'UNCLEAR_ROAD_MARKING',
-    'UNCLEAR_STOP_LINE',
-    'WHEELCHAIR',
-]
+final_classes_map = {
+    'ANIMAL':               'ANIMAL',
+    'BARRICADE':            'BARRICADE',
+    'BICYCLE':              'BICYCLE',
+    'BUS':                  'BUS',
+    'BUS_STOP_SIGN':        'BUS_STOP_SIGN',
+    'CAR':                  'CAR',
+    'CLEAN_STOP_SIGN':      'CLEAN_TRAFFIC_SIGN',
+    'CLEAN_TRAFFIC_SIGN':   'CLEAN_TRAFFIC_SIGN',
+    'CONE':                 'CONE',
+    'DIRTY_STOP_SIGN':      'DIRTY_TRAFFIC_SIGN',
+    'DIRTY_TRAFFIC_SIGN':   'DIRTY_TRAFFIC_SIGN',
+    'ETC':                  'ETC',
+    'HUMAN_LIKE':           'HUMAN_LIKE',
+    'JERSEY_BARRIER':       'JERSEY_BARRIER',
+    'MOTORCYCLE':           'MOTORCYCLE',
+    'NON_UPRIGHT':          'NON_UPRIGHT',
+    'PEDESTRIAN':           'PEDESTRIAN',
+    'RIDER':                'RIDER',
+    'ROAD_CRACKS':          'ROAD_CRACKS',
+    'ROAD_PATCH':           'ROAD_PATCH',
+    'ROAD_POTHOLES':        'ROAD_POTHOLES',
+    'TRAFFIC_LIGHT':        'TRAFFIC_LIGHT',
+    'TRUCK':                'TRUCK',
+    'UNCLEAR_LANE_MARKING': 'UNCLEAR_ROAD_MARKING',
+    'UNCLEAR_ROAD_MARKING': 'UNCLEAR_ROAD_MARKING',
+    'UNCLEAR_STOP_LINE':    'UNCLEAR_ROAD_MARKING',
+    'WHEELCHAIR':           'WHEELCHAIR',
+}
+final_classes = sorted(list(set(list(final_classes_map.values()))))
+interested_classes_ids = [8, 18]
 
 
 split_important_classes = [
@@ -153,6 +153,8 @@ def get_timestamp_from_file_name(file_name):
     digitals = file_name.split('.')[0]
     if len(digitals) == 17 or len(digitals) == 20:
         digitals = digitals[1:]
+    elif len(digitals) == 18 or len(digitals) == 21:
+        digitals = digitals[2:]
     timestamp = int(digitals) 
     if len(digitals) == 16:
         timestamp *= 10**3
@@ -177,7 +179,7 @@ def create_soft_link(image_root, lidar_plane_url):
         print(f'create soft link: link {link_path} -> source {actual_path}')
 
 
-def create_random_mask(num_images):
+def create_random_mask_evenly(num_images):
     pattern = [False]*10
     pattern[2:8] = [True]*6
     rand_ints = random.sample(range(num_images//len(pattern)), num_images//len(pattern)//5)
@@ -192,15 +194,38 @@ def create_random_mask(num_images):
 def find_good_split(focus_stats, target_ratio=0.12/0.8, tolerance=0.03):
     condition = False
     while not condition:
-        val_mask, train_mask = create_random_mask(focus_stats.shape[0])
+        val_mask, train_mask = create_random_mask_evenly(focus_stats.shape[0])
         ratio = np.divide(focus_stats[val_mask].sum(axis=0), focus_stats[train_mask].sum(axis=0))
         condition = np.logical_and(ratio < target_ratio+tolerance, ratio > target_ratio-tolerance).all()
         print(ratio, condition)
     return val_mask, train_mask
 
 
+def get_mask_of_sequences(seq_id_array, sub_seqs):
+    mask = np.full(seq_id_array.shape[0], False, dtype=bool)
+    for seq in sub_seqs:
+        mask = np.logical_or(mask, (seq_id_array == seq)[:, 0])
+    return mask
+
+
+def find_good_split_by_sequence(focus_stats, seq_id_array, target_ratio=0.12/0.8, tolerance=0.03):
+    condition = False
+    candidates = list(range(seq_id_array.max()+1))
+    total_sequences = seq_id_array.max()
+    while not condition:
+        # import ipdb; ipdb.set_trace()
+        num_seqs = random.randint(int(total_sequences*0.05), int(total_sequences*0.3)) 
+        sub_seqs = random.sample(candidates, num_seqs)
+        val_mask = get_mask_of_sequences(seq_id_array, sub_seqs)
+        train_mask = np.logical_not(val_mask)
+        ratio = np.divide(focus_stats[val_mask].sum(axis=0), focus_stats[train_mask].sum(axis=0))
+        condition = np.logical_and(ratio < target_ratio+tolerance, ratio > target_ratio-tolerance).all()
+        print(ratio, condition)
+
+    return val_mask, train_mask
+
+
 def main(args):
-    tmp = sorted(final_classes)
     # file_path_root = '/home/julian/data/indus-innov/raw-anno'
     # bdd_anno_root  = '/home/julian/data/indus-innov/bdd_anno'
     # image_root     = '/home/julian/data/indus-innov/images/kaohsiung5gsmartcitydemo'
@@ -263,21 +288,22 @@ def main(args):
                             else:
                                 continue
 
-                        # combine label
-                        # if label['category'] in pavement_defect_candidate:
-                        #     label['category'] = 'PAVEMENT_DEFECT'
-                        # split label
-
                         if label['category'] == 'PAVEMENT_DEFECT':
                             label['category'] = label['attributes']['PAVEMENT_DEFECT']
 
                         if label['category'] in ['TRAFFIC_SIGN', 'STOP_SIGN']:
-                            if not 'DIRTY' in label['attributes'] or label['attributes']['DIRTY'] == 'NO':
+                            if not 'DIRTY' in label['attributes']:
+                                assert False, f'no DIRTY in attribute: {label["category"]}'
+                            if label['attributes']['DIRTY'] == 'NO':
                                 label['category'] = 'CLEAN_' + label['category']
                             elif label['attributes']['DIRTY'] == 'YSE':
                                 label['category'] = 'DIRTY_' + label['category']
                             else:
                                 assert False, f'wired attribute value: {label["attributes"]["DIRTY"]}'
+
+                        # combine label finally
+                        label['category'] = final_classes_map[label['category']]
+                        
 
                         class_counter[label['category']] += 1
                         # get box2d
@@ -320,13 +346,36 @@ def main(args):
         import ipdb; ipdb.set_trace()
 
     stats_array = df[final_classes].to_numpy(dtype=int)
-    focus_stats = stats_array[:, [16,17,18,23,24,25]]
-    target_ratio, tolerance = 0.12/0.8, 0.03
-    val_mask, train_mask = find_good_split(focus_stats, target_ratio=target_ratio, tolerance=tolerance)
-    print(f'newly added labels: {newly_added_categories}')
-    print(f'not_supported_labels: {len(not_supported_labels)}')
-    print(f'done spliting with target_ratio {target_ratio} and tolerance {tolerance}')
-    print('done splitting train and val set')
+    focus_stats = stats_array[:, interested_classes_ids]
+    seq_id_array = df[['seq_id']].to_numpy(dtype=int)
+    target_ratio, tolerance = 0.12/0.8, 0.05
+
+    inp = 'no'
+    while inp!='yes':
+        val_mask, train_mask = find_good_split_by_sequence(focus_stats, seq_id_array, target_ratio=target_ratio, tolerance=tolerance)
+        # val_mask, train_mask = find_good_split(focus_stats, target_ratio=target_ratio, tolerance=tolerance)
+        val_stats, total_stats = np.sum(stats_array[val_mask],axis=0), np.sum(stats_array,axis=0)
+        assert val_stats.shape[0] == len(final_classes) and total_stats.shape[0] == len(final_classes), f'stats array dimension wrong != {len(final_classes)}'
+        stats_np = np.concatenate([val_stats.reshape(1, -1), total_stats.reshape(1, -1)], axis=0)
+        print('val ratio')
+        print(val_stats/total_stats)
+        print(f'newly added labels: {newly_added_categories}')
+        print(f'not_supported_labels: {len(not_supported_labels)}')
+        print(f'done spliting with target_ratio {target_ratio} and tolerance {tolerance}')
+        print('done splitting train and val set')
+        inp = input('yes to continue, otherwise re-split: ')
+
+
+    pathlib.Path(f'{bdd_anno_root}').mkdir(exist_ok=True, parents=True)
+    with open(f'{bdd_anno_root}/{seq_name}_stats_np.npy', 'wb') as f:
+        np.save(f, stats_np)
+    with open(f'{bdd_anno_root}/{seq_name}_class_name.txt', 'w') as f:
+        f.write('name:\n')
+        for i in range(len(final_classes)):
+            f.write(f'{i:02}: {final_classes[i]}\n')
+    with open(f'{bdd_anno_root}/{seq_name}_category_file.txt', 'w') as f:
+        for i in range(len(final_classes)):
+            f.write(f'{final_classes[i]}\n')
 
     if args.debug:
         print('press "c" to proceed to continue save to json file')
