@@ -208,7 +208,7 @@ def get_mask_of_sequences(seq_id_array, sub_seqs):
     return mask
 
 
-def find_good_split_by_sequence(focus_stats, seq_id_array, target_ratio=0.12/0.8, tolerance=0.03):
+def find_good_split_by_sequence(focus_stats, seq_id_array, old_focus_stats=None, target_ratio=0.12/0.8, tolerance=0.03):
     condition = False
     candidates = list(range(seq_id_array.max()+1))
     total_sequences = seq_id_array.max()
@@ -218,9 +218,15 @@ def find_good_split_by_sequence(focus_stats, seq_id_array, target_ratio=0.12/0.8
         sub_seqs = random.sample(candidates, num_seqs)
         val_mask = get_mask_of_sequences(seq_id_array, sub_seqs)
         train_mask = np.logical_not(val_mask)
-        ratio = np.divide(focus_stats[val_mask].sum(axis=0), focus_stats[train_mask].sum(axis=0))
+        if old_focus_stats is not None:
+            # print(focus_stats[val_mask].sum(axis=0)+focus_stats[0, :])
+            # print(focus_stats[train_mask].sum(axis=0) + focus_stats[1, :] - focus_stats[0, :])
+            ratio = np.divide(focus_stats[val_mask].sum(axis=0)+old_focus_stats[0, :], focus_stats[train_mask].sum(axis=0) + old_focus_stats[1, :] - old_focus_stats[0, :])
+        else:
+            ratio = np.divide(focus_stats[val_mask].sum(axis=0), focus_stats[train_mask].sum(axis=0))
         condition = np.logical_and(ratio < target_ratio+tolerance, ratio > target_ratio-tolerance).all()
         print(ratio, condition)
+        # import ipdb; ipdb.set_trace()
 
     return val_mask, train_mask
 
@@ -341,20 +347,31 @@ def main(args):
     print(df.sum())
     print('done parsing raw-annos')
 
-    if args.debug:
-        print('press "c" to proceed to continue spliting')
-        import ipdb; ipdb.set_trace()
-
     stats_array = df[final_classes].to_numpy(dtype=int)
     focus_stats = stats_array[:, interested_classes_ids]
     seq_id_array = df[['seq_id']].to_numpy(dtype=int)
     target_ratio, tolerance = 0.12/0.8, 0.05
 
+    old_stats = None
+    if args.old_stats:
+        with open(args.old_stats, 'rb') as f:
+            old_stats = np.load(f)
+        assert old_stats.shape[1] == len(final_classes), f'stats array dimension wrong != {len(final_classes)}'
+        print('old stats loaded')
+    old_focus_stats = old_stats[:, interested_classes_ids] if old_stats is not None else None
+
+    if args.debug:
+        print('press "c" to proceed to continue spliting')
+        import ipdb; ipdb.set_trace()
+
     inp = 'no'
     while inp!='yes':
-        val_mask, train_mask = find_good_split_by_sequence(focus_stats, seq_id_array, target_ratio=target_ratio, tolerance=tolerance)
+        val_mask, train_mask = find_good_split_by_sequence(focus_stats, seq_id_array, old_focus_stats, target_ratio=target_ratio, tolerance=tolerance)
         # val_mask, train_mask = find_good_split(focus_stats, target_ratio=target_ratio, tolerance=tolerance)
         val_stats, total_stats = np.sum(stats_array[val_mask],axis=0), np.sum(stats_array,axis=0)
+        if old_stats is not None:
+            val_stats += old_stats[0, :]
+            total_stats += old_stats[1, :]
         assert val_stats.shape[0] == len(final_classes) and total_stats.shape[0] == len(final_classes), f'stats array dimension wrong != {len(final_classes)}'
         stats_np = np.concatenate([val_stats.reshape(1, -1), total_stats.reshape(1, -1)], axis=0)
         print('val ratio')
@@ -420,6 +437,7 @@ if __name__ == '__main__':
     parser.add_argument('--bdd_anno', type=str, help='', required=True)
     parser.add_argument('--image_root', type=str, help='', required=True)
     parser.add_argument('--seq_name', type=str, help='', required=True)
+    parser.add_argument('--old_stats', default=None, help='Optional loading old stats for incremental update new data and split accordingly')
     parser.add_argument('--debug', action='store_true', help='debug run with ipdb breakpoint')
     args = parser.parse_args()
     main(args)
