@@ -1,0 +1,9 @@
+# split by sequence
+# just parse new annotations to separate sequence
+# can scratch or finetune
+# if scratch
+both train and val 
+bdd2yolo --bdd-file accept <path/to/train/or/val>
+# if fintune, train accept new seq data only, keepval accept whole
+
+# trining result naming can defined by seq, scratch means use all seqs before and including the named sequence, fine tune means use only named sequence
