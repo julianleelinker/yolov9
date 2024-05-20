@@ -175,8 +175,8 @@ def create_soft_link(image_root, lidar_plane_url):
     link_path = get_image_from_lidar_plane_url(image_root, lidar_plane_url, repeat=3)
     link_path.parent.mkdir(exist_ok=True, parents=True)
     if not pathlib.Path.exists(link_path):
-        link_path.symlink_to(actual_path)
-        print(f'create soft link: link {link_path} -> source {actual_path}')
+        link_path.symlink_to(f'../{actual_path.name}')
+        print(f'create soft link: link {link_path} -> source ../{actual_path.name}')
 
 
 def create_random_mask_evenly(num_images):
