@@ -238,6 +238,8 @@ def main(args):
     file_path_root, image_root, bdd_anno_root, seq_name = args.raw_anno, args.image_root, args.bdd_anno, args.seq_name
     file_path_list = sorted(pathlib.Path(file_path_root).glob('*.json'))
     # file_path_list = file_path_list[7:8]
+    for i, final_class in enumerate(final_classes):
+        print(f'{i:02}: {final_class}')
 
 
     # separate all data to different json that can be convert by bdd2coco, and check if there is any bad label
@@ -380,6 +382,9 @@ def main(args):
         print(f'not_supported_labels: {len(not_supported_labels)}')
         print(f'done spliting with target_ratio {target_ratio} and tolerance {tolerance}')
         print('done splitting train and val set')
+        if args.debug:
+            print('inspcet some variables here')
+            import ipdb; ipdb.set_trace()
         inp = input('yes to continue, otherwise re-split: ')
 
 
