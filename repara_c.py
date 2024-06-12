@@ -8,7 +8,12 @@ ckpt_path = '/home/julian/work/yolov9/runs/train/yolov9-c7/weights/best.pt'
 # output_path = '/home/julian/work/yolov9/runs/train/yolov9-c7/weights/best-converted.pt'
 output_path = '/home/julian/work/yolov9/runs/train/yolov9-c7/weights/best-converted-2.pt'
 
-model = Model(cfg, ch=3, nc=26, anchors=3)
+
+ckpt_path = '/home/julian/work/yolov9/runs/train/yolov9c-scratch_s1-s17_s21/weights/best.pt'
+output_path = '/home/julian/work/yolov9/runs/train/yolov9c-scratch_s1-s17_s21/weights/best-converted.pt'
+nc = 23
+
+model = Model(cfg, ch=3, nc=nc, anchors=3)
 #model = model.half()
 model = model.to(device)
 _ = model.eval()
