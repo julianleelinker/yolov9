@@ -17,3 +17,5 @@ python trt_int8.py --onnx <onnx-file> --calib_path <calib-dir>
 /usr/src/tensorrt/bin/trtexec --minShapes=images:1x3x640x640 --optShapes=images:3x3x640x640 --maxShapes=images:3x3x640x640 --verbose \
   --device=0 --int8 --fp16 --warmUp=500 --duration=10  --useCudaGraph --useSpinWait --noDataTransfers --profilingVerbosity=detailed \
   --onnx=qat-0419.onnx --saveEngine=qat-0419.trt --exportLayerInfo=qat-0419-layer.json --exportProfile=qat-0419-profile.json
+
+# modify general line 904 for switching between paramtrize and unparametrize models
