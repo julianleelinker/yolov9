@@ -246,7 +246,7 @@ def main(args):
     not_supported_labels = []
     newly_added_categories = set()
     task_dict = {}
-    df = pd.DataFrame(columns=(['timestamp', 'image_id', 'seq_id'] + final_classes))
+    df = pd.DataFrame(columns=(['timestamp', 'image_id', 'seq_id', 'lidarPlaneURLs'] + final_classes))
 
     all_annos = {}
     for file_path in file_path_list:
@@ -296,6 +296,7 @@ def main(args):
                             else:
                                 continue
 
+                        # for older annotations 'PAVEMENT_DEFECT', need to get attributes to determine the category
                         if label['category'] == 'PAVEMENT_DEFECT':
                             label['category'] = label['attributes']['PAVEMENT_DEFECT']
 
@@ -332,7 +333,7 @@ def main(args):
                             print(label)
                             not_supported_labels.append(label)
 
-                pddata = pd.DataFrame(dict(timestamp=timestamp, image_id=image_id, seq_id=0, **class_counter), index=[0])
+                pddata = pd.DataFrame(dict(timestamp=timestamp, image_id=image_id, seq_id=0, lidarPlaneURLs=frame['lidarPlaneURLs'], **class_counter), index=[0])
                 df = pd.concat([df, pddata], ignore_index=True)
 
 
