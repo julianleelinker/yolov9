@@ -3,18 +3,20 @@ import torch
 from models.yolo import Model
 
 device = torch.device("cpu")
-cfg = '/home/julian/work/yolov9/models/detect/tiip-c.yaml'
-ckpt_path = '/home/julian/work/yolov9/runs/train/yolov9-c7/weights/best.pt'
-# output_path = '/home/julian/work/yolov9/runs/train/yolov9-c7/weights/best-converted.pt'
-output_path = '/home/julian/work/yolov9/runs/train/yolov9-c7/weights/best-converted-2.pt'
+cfg = './models/detect/gelan-c.yaml'
 
+# ckpt_path = '/home/julian/work/yolov9/runs/train/yolov9c-s1_s12_scratch/weights/best.pt'
+# output_path = '/home/julian/work/yolov9/runs/train/yolov9c-s1_s12_scratch/weights/best-converted2.pt'
 
-ckpt_path = '/home/julian/work/yolov9/runs/train/yolov9c-scratch_s1-s17_s21/weights/best.pt'
-output_path = '/home/julian/work/yolov9/runs/train/yolov9c-scratch_s1-s17_s21/weights/best-converted.pt'
+ckpt_path = '/home/julian/work/yolov9/runs/train/yolov9c-scratch_s1-s24/weights/best.pt'
+output_path = '/home/julian/work/yolov9/runs/train/yolov9c-scratch_s1-s24/weights/best-converted.pt'
+
+# ckpt_path = 'yolov9-c.pt'
+# output_path = 'yolov9-c-converted.pt'
+
 nc = 23
-
 model = Model(cfg, ch=3, nc=nc, anchors=3)
-#model = model.half()
+# model = model.half()
 model = model.to(device)
 _ = model.eval()
 ckpt = torch.load(ckpt_path, map_location='cpu')
