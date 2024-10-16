@@ -117,8 +117,38 @@ final_classes_map = {
     'UNCLEAR_STOP_LINE':    'UNCLEAR_ROAD_MARKING',
     'WHEELCHAIR':           'WHEELCHAIR',
 }
+final_classes_map = {
+    'ANIMAL':               'USELESS',
+    'BARRICADE':            'USELESS',
+    'BICYCLE':              'BICYCLE',
+    'BUS':                  'BUS',
+    'BUS_STOP_SIGN':        'USELESS',
+    'CAR':                  'CAR',
+    'CLEAN_STOP_SIGN':      'CLEAN_TRAFFIC_SIGN',
+    'CLEAN_TRAFFIC_SIGN':   'CLEAN_TRAFFIC_SIGN',
+    'CONE':                 'CONE',
+    'DIRTY_STOP_SIGN':      'DIRTY_TRAFFIC_SIGN',
+    'DIRTY_TRAFFIC_SIGN':   'DIRTY_TRAFFIC_SIGN',
+    'ETC':                  'USELESS',
+    'HUMAN_LIKE':           'USELESS',
+    'JERSEY_BARRIER':       'JERSEY_BARRIER',
+    'MOTORCYCLE':           'MOTORCYCLE',
+    'NON_UPRIGHT':          'USELESS',
+    'PEDESTRIAN':           'PEDESTRIAN',
+    'RIDER':                'RIDER',
+    'ROAD_CRACKS':          'ROAD_CRACKS',
+    'ROAD_PATCH':           'ROAD_PATCH',
+    'ROAD_POTHOLES':        'ROAD_POTHOLES',
+    'TRAFFIC_LIGHT':        'TRAFFIC_LIGHT',
+    'TRUCK':                'TRUCK',
+    'UNCLEAR_LANE_MARKING': 'UNCLEAR_ROAD_MARKING',
+    'UNCLEAR_ROAD_MARKING': 'UNCLEAR_ROAD_MARKING',
+    'UNCLEAR_STOP_LINE':    'UNCLEAR_ROAD_MARKING',
+    'WHEELCHAIR':           'USELESS',
+}
 final_classes = sorted(list(set(list(final_classes_map.values()))))
-interested_classes_ids = [8, 18]
+# interested_classes_ids = [8, 18]
+interested_classes_ids = [i for i in range(len(final_classes)) if i!=16] # ecxlude 'USELESS' in index of USELESS 
 
 
 split_important_classes = [
@@ -353,7 +383,7 @@ def main(args):
     stats_array = df[final_classes].to_numpy(dtype=int)
     focus_stats = stats_array[:, interested_classes_ids]
     seq_id_array = df[['seq_id']].to_numpy(dtype=int)
-    target_ratio, tolerance = 0.12/0.8, 0.05
+    target_ratio, tolerance = 0.14, 0.06
 
     old_stats = None
     if args.old_stats:
@@ -379,6 +409,8 @@ def main(args):
         stats_np = np.concatenate([val_stats.reshape(1, -1), total_stats.reshape(1, -1)], axis=0)
         print('val ratio')
         print(val_stats/total_stats)
+        print('max, min')
+        print((val_stats/total_stats).max(), (val_stats/total_stats).min())
         print(f'newly added labels: {newly_added_categories}')
         print(f'not_supported_labels: {len(not_supported_labels)}')
         print(f'done spliting with target_ratio {target_ratio} and tolerance {tolerance}')
@@ -395,7 +427,7 @@ def main(args):
     with open(f'{bdd_anno_root}/{seq_name}_class_name.txt', 'w') as f:
         f.write('name:\n')
         for i in range(len(final_classes)):
-            f.write(f'{i:02}: {final_classes[i]}\n')
+            f.write(f'{i:>2}: {final_classes[i]}\n')
     with open(f'{bdd_anno_root}/{seq_name}_category_file.txt', 'w') as f:
         for i in range(len(final_classes)):
             f.write(f'{final_classes[i]}\n')
