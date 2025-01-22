@@ -335,7 +335,7 @@ def main(args):
                                 assert False, f'no DIRTY in attribute: {label["category"]}'
                             if label['attributes']['DIRTY'] == 'NO':
                                 label['category'] = 'CLEAN_' + label['category']
-                            elif label['attributes']['DIRTY'] == 'YSE':
+                            elif label['attributes']['DIRTY'] in ['YSE', 'YES']:
                                 label['category'] = 'DIRTY_' + label['category']
                             else:
                                 assert False, f'wired attribute value: {label["attributes"]["DIRTY"]}'

@@ -6,16 +6,21 @@ DOCKER_BUILDKIT=1 docker build -f convert.Dockerfile -t yolov9trt-new .
 
 # inside docker
 /usr/src/tensorrt/bin/trtexec --onnx=qat_ep_5_ap_0.7026_best-converted-end2end.onnx --saveEngine=qat_ep_5_ap_0.7026_best-converted-end2end.trt --explicitBatch --minShapes=images:1x3x640x640 --optShapes=images:3x3x640x640 --maxShapes=images:3x3x640x640 --verbose --device=0 --int8 --fp16
+
 # or TRT implicit 
 ## first generate calib.cache by
 python trt_int8.py --onnx <onnx-file> --calib_path <calib-dir>
+
 ## then rerun with --calib and save json 
 /usr/src/tensorrt/bin/trtexec --minShapes=images:1x3x640x640 --optShapes=images:3x3x640x640 --maxShapes=images:3x3x640x640 --verbose \
   --device=0 --int8 --fp16 --warmUp=500 --duration=10  --useCudaGraph --useSpinWait --noDataTransfers --profilingVerbosity=detailed \
   --onnx=qat-0419.onnx --saveEngine=qat-0419.trt --exportLayerInfo=qat-0419-layer.json --exportProfile=qat-0419-profile.json --calib=calib.cache
 # or for plotting graph with qat module
+
 /usr/src/tensorrt/bin/trtexec --minShapes=images:1x3x640x640 --optShapes=images:3x3x640x640 --maxShapes=images:3x3x640x640 --verbose \
   --device=0 --int8 --fp16 --warmUp=500 --duration=10  --useCudaGraph --useSpinWait --noDataTransfers --profilingVerbosity=detailed \
   --onnx=qat-0419.onnx --saveEngine=qat-0419.trt --exportLayerInfo=qat-0419-layer.json --exportProfile=qat-0419-profile.json
 
 # modify general line 904 for switching between paramtrize and unparametrize models
+
+python val_dual.py --data data/tiip-scratch_yolo-s1-s24.yaml --conf 0.001 --iou 0.5 --device 0 --weights '/home/julian/work/yolov9/runs/train/yolov9c-scratch_s1-s24/weights/best.pt'
