@@ -11,9 +11,8 @@ cfg = './models/detect/gelan-c.yaml'
 # ckpt_path = '/home/julian/work/yolov9/runs/train/yolov9c-scratch_s1-s24/weights/best.pt'
 # output_path = '/home/julian/work/yolov9/runs/train/yolov9c-scratch_s1-s24/weights/best-converted.pt'
 
-# ckpt_path = '/home/julian/work/yolov9/runs/train/yolov9c-scratch_s1-s24/weights/best.pt'
-ckpt_path = '/home/julian/work/yolov9/runs/train/yolov9c-scratch_s1-s24-final/weights/epoch120.pt'
-output_path = '/home/julian/work/yolov9/runs/train/yolov9c-scratch_s1-s24-final/weights/best-converted.pt'
+ckpt_path = '/home/julian/work/yolov9/runs/train/yolov9c-scratch_s1-s24_s27-s29/weights/best.pt'
+output_path = '/home/julian/work/yolov9/runs/train/yolov9c-scratch_s1-s24_s27-s29/weights/best-converted.pt'
 
 # ckpt_path = 'yolov9-c.pt'
 # output_path = 'yolov9-c-converted.pt'

@@ -1,8 +1,8 @@
 # path: /mnt/data-home/datasets/BDDdataset-YOLO # m234
 path: /home/julian/data/BDDdataset-YOLO # leo
 train: ./images/train/ # train image folder
-val: ./images/val/ # val image folder
-test: ./images/val/ # test image folder
+val: ./images/train/ # val image folder
+test: ./images/train/ # test image folder
 
 names:
   0: traffic sign
